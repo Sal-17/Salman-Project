@@ -1,0 +1,154 @@
+-- Create the online retail schema
+DROP SCHEMA IF EXISTS online_retail_app CASCADE;
+CREATE SCHEMA IF NOT EXISTS online_retail_app;
+
+-- User Login
+DROP TABLE IF EXISTS online_retail_app.user_login;
+CREATE TABLE online_retail_app.user_login (
+    user_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    email_id TEXT UNIQUE NOT NULL,
+    password TEXT NOT NULL,
+    first_name TEXT NOT NULL,
+    last_name TEXT NOT NULL,
+    sign_up_on TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Customer Details
+DROP TABLE IF EXISTS online_retail_app.customers;
+CREATE TABLE online_retail_app.customers (
+    customer_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID REFERENCES online_retail_app.user_login(user_id),
+    contact TEXT,
+    address JSONB,
+    loyalty_points INT DEFAULT 0,
+    last_login TIMESTAMP
+);
+
+-- Product Categories
+DROP TABLE IF EXISTS online_retail_app.product_categories;
+CREATE TABLE online_retail_app.product_categories (
+    category_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    category_name TEXT NOT NULL,
+    category_description TEXT
+);
+
+-- Product Items
+DROP TABLE IF EXISTS online_retail_app.product_items;
+CREATE TABLE online_retail_app.product_items (
+    item_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    item_code TEXT UNIQUE NOT NULL,
+    item_name TEXT NOT NULL,
+    category_id UUID REFERENCES online_retail_app.product_categories(category_id),
+    item_description TEXT,
+    item_image JSON,
+    price FLOAT NOT NULL,
+    discount FLOAT DEFAULT 0,
+    stock_count INT DEFAULT 0,
+    sold_by TEXT
+);
+
+-- Cart for User Shopping
+DROP TABLE IF EXISTS online_retail_app.cart;
+CREATE TABLE online_retail_app.cart (
+    cart_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    customer_id UUID REFERENCES online_retail_app.customers(customer_id),
+    created_on TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+DROP TABLE IF EXISTS online_retail_app.cart_items;
+CREATE TABLE online_retail_app.cart_items (
+    cart_item_id SERIAL PRIMARY KEY,
+    cart_id UUID REFERENCES online_retail_app.cart(cart_id),
+    item_id UUID REFERENCES online_retail_app.product_items(item_id),
+    quantity INT DEFAULT 1
+);
+
+-- Orders and Payment
+DROP TABLE IF EXISTS online_retail_app.orders;
+CREATE TABLE online_retail_app.orders (
+    order_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    customer_id UUID REFERENCES online_retail_app.customers(customer_id),
+    order_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    payment_status TEXT CHECK (payment_status IN ('Pending', 'Completed', 'Failed')),
+    delivery_status TEXT CHECK (delivery_status IN ('Pending', 'Shipped', 'Delivered', 'Cancelled'))
+);
+
+DROP TABLE IF EXISTS online_retail_app.order_items;
+CREATE TABLE online_retail_app.order_items (
+    order_item_id SERIAL PRIMARY KEY,
+    order_id UUID REFERENCES online_retail_app.orders(order_id),
+    item_id UUID REFERENCES online_retail_app.product_items(item_id),
+    quantity INT NOT NULL
+);
+
+DROP TABLE IF EXISTS online_retail_app.payment;
+CREATE TABLE online_retail_app.payment (
+    payment_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    order_id UUID REFERENCES online_retail_app.orders(order_id),
+    payment_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    payment_mode TEXT CHECK (payment_mode IN ('Credit Card', 'Debit Card', 'PayPal', 'Gift Card')),
+    amount FLOAT NOT NULL,
+    success BOOLEAN DEFAULT TRUE
+);
+
+-- Shipment Tracking
+DROP TABLE IF EXISTS online_retail_app.shipments;
+CREATE TABLE online_retail_app.shipments (
+    shipment_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    order_id UUID REFERENCES online_retail_app.orders(order_id),
+    tracking_number TEXT UNIQUE,
+    shipment_date DATE,
+    estimated_delivery_date DATE,
+    actual_delivery_date DATE,
+    carrier TEXT
+);
+
+-- Employee Management
+DROP TABLE IF EXISTS online_retail_app.employment_type;
+CREATE TABLE online_retail_app.employment_type (
+    employment_type_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    employment_type TEXT NOT NULL,
+    internal_employee BOOLEAN DEFAULT TRUE,
+    vendor_name TEXT
+);
+
+DROP TABLE IF EXISTS online_retail_app.employees;
+CREATE TABLE online_retail_app.employees (
+    employee_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    employment_type_id UUID REFERENCES online_retail_app.employment_type(employment_type_id),
+    first_name TEXT NOT NULL,
+    last_name TEXT NOT NULL,
+    contact TEXT,
+    start_date DATE,
+    email_id TEXT UNIQUE,
+    contract_expiry DATE
+);
+
+-- Product Reviews
+DROP TABLE IF EXISTS online_retail_app.reviews;
+CREATE TABLE online_retail_app.reviews (
+    review_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    customer_id UUID REFERENCES online_retail_app.customers(customer_id),
+    item_id UUID REFERENCES online_retail_app.product_items(item_id),
+    rating INT CHECK (rating BETWEEN 1 AND 5),
+    review_text TEXT,
+    review_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Loyalty Program Transactions
+DROP TABLE IF EXISTS online_retail_app.loyalty_transactions;
+CREATE TABLE online_retail_app.loyalty_transactions (
+    transaction_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    customer_id UUID REFERENCES online_retail_app.customers(customer_id),
+    points_earned INT,
+    points_redeemed INT DEFAULT 0,
+    transaction_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    description TEXT
+);
+Schema Breakdown and Key Enhancements:
+Loyalty Program: loyalty_transactions allows consumers to earn and redeem points, which are tracked in the customer table.
+Enhanced Product Management: Separate product_categories and product_items tables improve classification and organization.
+Shopping Cart System: The cart and cart_items tables are used to handle active items in a customer's shopping cart.
+Shipment Tracking: A table for tracking delivery status, carrier information, and projected delivery timings.
+consumer Reviews: A table for tracking consumer comments on purchased products.
+Security and Uniqueness: UUIDs are used as primary keys to assure uniqueness, which is useful for distributed databases and microservices.
